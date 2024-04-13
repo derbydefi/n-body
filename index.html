@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Particle Simulation</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #5f5c5c;
+            color: #fff;
+        }
+
+        #simulationArea {
+            position: relative;
+            width: 800px;
+            /* Set this to match your canvas width */
+        }
+
+        canvas {
+            border: 1px solid #fff;
+        }
+
+        #statsContainer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.1);
+            /* Semi-transparent black background */
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: right;
+        }
+
+        .settings-panel {
+            display: none;
+            text-align: center;
+        }
+
+        .settings-panel.active {
+            display: block;
+        }
+
+        .nav-bar {
+            display: flex;
+            justify-content: space-around;
+            width: 800px;
+            background-color: #333;
+            margin-top: 10px;
+            padding: 10px 0;
+            border-radius: 5px;
+        }
+
+        .nav-item {
+            color: #fff;
+            cursor: pointer;
+            padding: 5px 10px;
+            text-align: center;
+        }
+
+        .nav-item:hover {
+            background-color: #555;
+        }
+
+
+
+        #helpButton {
+    color: #fff;
+    background-color: #333;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#helpButton:hover {
+    background-color: #555;
+}
+
+/* Styling for the help section */
+#helpSection {
+    display: none; /* initially hidden */
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 300px;
+    background-color: rgba(255, 255, 255, 0.95); /* slightly opaque white for better readability */
+    color: black; /* ensures text is readable */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    z-index: 100; /* makes sure it floats above other elements */
+    font-size: 0.9em; /* slightly smaller text */
+}
+
+#helpSection h2 {
+    margin-top: 0;
+    color: #333; /* darker color for headings */
+}
+
+#helpSection ul {
+    padding-left: 20px; /* proper indentation for list */
+}
+
+#helpSection button {
+    background-color: #333;
+    color: #fff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: block; /* makes it a block to align it at the center */
+    margin: 10px auto 0; /* top margin and auto horizontal margins */
+}
+
+#helpSection button:hover {
+    background-color: #555;
+}
+
+
+
+
+
+
+
+
+        input,
+        button,
+        select {
+            margin: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="simulationArea">
+        <canvas id="simulationCanvas" width="800" height="600"></canvas>
+        <div id="statsContainer">
+            <div id="particleCount">Particles: 0</div>
+            <div id="planetCount">Planets: 0</div>
+            <div id="starCount">Stars: 0</div>
+            <div id="blackholeCount">Black Holes: 0</div>
+            <div id="maxVelocity">Max Velocity: 0</div>
+            <div id="fpsCount">FPS: 0</div>
+        </div>
+    </div>
+
+    <script src="index.js"></script>
+
+    <div>
+        <button onclick="restartSimulation()">Restart</button>
+        <button id="resetZoomButton">Reset Camera</button>
+        <button id="pauseButton">Pause</button>
+
+
+        <label for="objectType">Draw Type:</label>
+        <select id="objectType">
+            <option value="particle">Particle</option>
+            <option value="planet">Planet</option>
+            <option value="sun">Star</option>
+            <option value="blackhole">Black Hole</option>
+        </select>
+
+
+        <button id="helpButton">Help</button>
+        <div id="helpSection" style="display: none; background: white; color: black; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.5); position: absolute; top: 20px; right: 20px; width: 300px; z-index: 100;">
+            <h2>Simulation Guide</h2>
+            <p>This simulation models the gravitational interactions between celestial bodies using a combination of the Barnes-Hut algorithm and a quadtree data structure to efficiently calculate the forces and update positions of particles.</p>
+            <h3>Technical Overview</h3>
+            <ul>
+                <li><strong>Quadtree:</strong> Spatial data structure used to partition the simulation space, reducing the complexity of force calculations.</li>
+                <li><strong>Barnes-Hut Algorithm:</strong> Approximates distant particles as a single mass to accelerate computations, controlled by the θ (Theta) parameter.</li>
+            </ul>
+            <h3>Key Parameters</h3>
+            <ul>
+                <li><strong>G Scaler:</strong> Scales the gravitational constant to enhance or dampen gravitational effects.</li>
+                <li><strong>Time Step (DT):</strong> Influences the simulation's temporal resolution. Smaller steps increase accuracy but decrease performance.</li>
+                <li><strong>Max Depth:</strong> Limits the depth of the quadtree, affecting memory usage and performance.</li>
+                <li><strong>Theta:</strong> Determines the accuracy of the Barnes-Hut approximation. Lower values increase accuracy but reduce performance.</li>
+            </ul>
+            <h3>Using the Interface</h3>
+            <p>Interact with the simulation through UI controls to adjust parameters in real-time, mouse wheel to zoom in/out and pan across the simulation space, and draw selected particle type into the simulation.</p>
+            <h3>Tips and Tricks</h3>
+            <ul>
+                <li>Adjust <strong>Theta</strong> for different scenarios: smaller for single systems, larger for crowded fields.</li>
+                <li>Use <strong>Gravitational Softening</strong> to alter particle radius handling, lower values can cause every particle to slingshot eachother</li>
+                <li>Alter <strong>Render Radii</strong> help visualize when zoomed out</li>
+                <li>Pause the simulation after initializing the <strong>void</strong> inititial conditions for an empty canvas to draw on</li>
+            </ul>
+            <button onclick="document.getElementById('helpSection').style.display='none';">Close</button>
+        </div>
+        
+
+
+
+
+    </div>
+
+
+    <div class="nav-bar">
+
+        <div class="nav-item" onclick="switchPanel('simulation')">Simulation</div>
+        <div class="nav-item" onclick="switchPanel('accretion')">Accretion</div>
+        <div class="nav-item" onclick="switchPanel('initial')">Initial Conditions</div>
+        <div class="nav-item" onclick="switchPanel('visualization')">Visualization</div>
+
+    </div>
+
+
+
+    <div id="simulation" class="settings-panel">
+
+
+        <label for="gScaler">Gravitational Scaler (G Scaler):</label>
+        <input type="number" id="gScaler" value="100000"><br>
+        <label for="gConstant">Gravitational Constant (G):</label>
+        <input type="number" id="gConstant" value="6.6743e-11" disabled><br>
+        <label for="eta">Gravitational Softening (η):</label>
+        <input type="number" id="eta" value="30"><br>
+
+        <label for="dt">Time Step (DT):</label>
+        <input type="number" id="dt" value="1"><br>
+        <label for="maxDepth">Max Depth of Quadtree:</label>
+        <input type="number" id="maxDepth" value="14"><br>
+        <label for="theta">Barnes-Hut Approximation Threshold (θ):</label>
+        <input type="range" id="theta" value="0.4" min="0" max="1" step="0.01"><br>
+    </div>
+    <div id="accretion" class="settings-panel">
+        <label for="planetThreshold">Planet Accretion Threshold:</label>
+        <input type="number" id="planetThreshold" value="5"><br>
+        <label for="sunThreshold">Sun Accretion Threshold:</label>
+        <input type="number" id="sunThreshold" value="10"><br>
+        <label for="supernovaAge">Supernova Age:</label>
+        <input type="number" id="supernovaAge" value="1000"><br>
+        <label for="accretionChance">Accretion Chance:</label>
+        <input type="range" id="accretionChance" value="0.1" min="0" max="1" step="0.01"><br>
+        <label for="supernovaChance">Supernova Chance:</label>
+        <input type="range" id="supernovaChance" value="0.1" min="0" max="1" step="0.01"><br>
+
+        <label for="maxExplosion">Supernova Emission Velocity:</label>
+        <input type="range" id="maxExplosion" value="10" min="0" max="100" step="0.1"><br>
+        <label for="blackholeChance">Black Hole Creation Chance:</label>
+        <input type="range" id="blackholeChance" value="0.01" min="0" max="1" step="0.01"><br>
+        <label for="blackholeAccretion">Black Hole Accretion Chance:</label>
+        <input type="range" id="blackholeAccretion" value="0.1" min="0" max="1" step="0.01"><br>
+        <label for="blackholeHorizon">Black Horizon Radius Multiplier:</label>
+        <input type="number" id="blackholeHorizon" value="1" step="1"><br>
+        <label for="maxMass">Max/Black Hole mass:</label>
+        <input type="number" id="maxMass" value="1e10" step="1e4"><br>
+        <label for="supernovaParticleGen">Supernova Particle Emission Multiplier:</label>
+        <input type="range" id="supernovaParticleGen" value="2" min="0" max="10" step="1"><br>
+    </div>
+
+    <div id="initial" class="settings-panel">
+        <div>
+            <label for="initialCondition">Initial Condition:</label>
+            <select id="initialCondition">
+                <option value="rotatingDisk">Rotating Disk</option>
+                <option value="randomDistribution">Random Distribution</option>
+                <option value="binary">binary stars</option>
+                <option value="trinary">trinary stars</option>
+                <option value="cluster">cluster</option>
+                <option value="expandingSphere">expanding sphere</option>
+                <option value="grid">grid</option>
+                <option value="empty">void</option>
+                <!-- Add more initial conditions as needed -->
+            </select>
+
+
+        </div>
+
+        <label for="initialParticleCount">Initial Particle Count:</label>
+        <input type="number" id="initialParticleCount" value="5000"><br>
+        <label for="initialParticleMass">Initial Particle Mass:</label>
+        <input type="number" id="initialParticleMass" value="1000000"><br>
+        <label for="initialVelocity">Initial Velocity:</label>
+        <input type="number" id="initialVelocity" value="20"><br>
+        <label for="radiusRotation">Radius Rotation:</label>
+        <input type="number" id="radiusRotation" value="200"><br>
+    </div>
+
+
+
+
+
+    <div id="visualization" class="settings-panel">
+
+        <div>
+            <label for="widthInput">Canvas Width:</label>
+            <input id="widthInput" type="number" placeholder="800" value="800">
+            <label for="heightInput">Canvas Height:</label>
+            <input id="heightInput" type="number" placeholder="600" value="600">
+            <button onclick="updateCanvasSize()">Set Size</button>
+        </div>
+        <div>
+
+        </div>
+        <label for="renderQuadtree">Render Quadtree:</label>
+        <input type="checkbox" id="renderQuadtree"><br>
+        <label for="renderCenterMass">Render Center of Mass:</label>
+        <input type="checkbox" id="renderCenterMass"><br>
+        <label for="renderTrail">Render Trails:</label>
+        <input type="checkbox" id="renderTrail" checked="true"><br>
+
+        <label for="particleRadius">Particle Render Radius:</label>
+        <input type="number" id="particleRadius" value="1"><br>
+        <label for="planetRadius">Planet Render Radius:</label>
+        <input type="number" id="planetRadius" value="1"><br>
+        <label for="sunRadius">Sun Render Radius:</label>
+        <input type="number" id="sunRadius" value="2"><br>
+        <label for="blackholeRadius">Blackhole Render Radius:</label>
+        <input type="number" id="blackholeRadius" value="3"><br>
+        <label for="maxTrail">Trail Rendering Length:</label>
+        <input type="number" id="maxTrail" value="2"><br>
+        <label for="trailAlpha">Trail Rendering Alpha:</label>
+        <input type="range" id="trailAlpha" value="0.2" min="0" max="1" step="0.01"><br>
+
+        <label for="particleColorSlow">Particle Color (Slow):</label>
+        <input type="color" id="particleColorSlow" value="#add8e6"> <!-- Light Blue -->
+
+        <label for="particleColorFast">Particle Color (Fast):</label>
+        <input type="color" id="particleColorFast" value="#00008b"> <!-- Dark Blue -->
+
+        <label for="planetColor">Planet Color:</label>
+        <input type="color" id="planetColor" value="#00ff00"> <!-- Lime -->
+
+        <label for="sunColor">Sun Color:</label>
+        <input type="color" id="sunColor" value="#ffff00"> <!-- Yellow -->
+
+        <label for="blackholeColor">Black Hole Color:</label>
+        <input type="color" id="blackholeColor" value="#800000"> <!-- Maroon -->
+
+
+    </div>
+
+    <script>
+        function switchPanel ( panelId )
+        {
+            const panels = document.querySelectorAll( '.settings-panel' );
+            panels.forEach( panel =>
+            {
+                if ( panel.id === panelId )
+                {
+                    panel.classList.add( 'active' );
+                } else
+                {
+                    panel.classList.remove( 'active' );
+                }
+            } );
+        }
+    </script>
+
+
+</body>
+
+</html>
